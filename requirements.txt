@@ -2,5 +2,11 @@ dash
 plotly
 gunicorn
 numpy < 2.0.0
+mir_eval
+jams
+librosa
+scipy
+scikit-learn
+dash-bootstrap-components
 
 git+https://github.com/tomxi/bnl.git@dev/gaussian-smearing

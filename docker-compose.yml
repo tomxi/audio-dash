@@ -1,0 +1,22 @@
+# docker-compose.yml
+version: '3.12'
+
+services:
+  # This service is for local development with hot-reloading
+  dev:
+    # Build the image from the Dockerfile in the current directory
+    build: .
+    # Map the ports
+    ports:
+      - "7860:7860"
+    # Mount the local code directory into the container
+    volumes:
+      - .:/code
+    # OVERRIDE the Dockerfile's CMD and run the debug server instead
+    command: python app.py
+
+  # This service is for testing the production build locally
+  prod:
+    build: .
+    ports:
+      - "7860:7860" # Use a different local port to avoid conflicts
