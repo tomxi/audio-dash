@@ -1,15 +1,12 @@
 # Start with a standard Python base image
 FROM python:3.12-slim
 
-# Set build argument to control git installation
-ARG INSTALL_GIT=false
-
-# Conditionally install git only if needed
-RUN if [ "$INSTALL_GIT" = "true" ]; then \
-        apt-get update && \
-        apt-get install -y --no-install-recommends git && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
+# Install git (required for pip install from git repositories)
+# This is needed for both local development and HF Spaces
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Set the working directory inside the container
 WORKDIR /code
@@ -18,8 +15,7 @@ WORKDIR /code
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN --mount=type=ssh \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
