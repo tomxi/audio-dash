@@ -8,5 +8,6 @@ librosa
 scipy
 scikit-learn
 dash-bootstrap-components
+dash-mantine-components
 
 git+https://github.com/tomxi/bnl.git@dev/gaussian-smearing

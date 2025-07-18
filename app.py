@@ -1,11 +1,12 @@
 """Audio Dashboard - A Dash app for visualizing audio annotations."""
 import dash
-from dash import dcc, html
-import dash_bootstrap_components as dbc
+from dash import dcc, html, _dash_renderer
+from dash.dependencies import Input, Output
+import dash_mantine_components as dmc
 from plotly.subplots import make_subplots
 
 import bnl
-
+_dash_renderer._set_react_version("18.2.0")
 
 def load_ds():
     """Load sample audio data with annotations."""
@@ -42,64 +43,79 @@ def create_annotation_plot(track):
         barmode="overlay",
         yaxis1=dict(
             categoryorder="array",
-            categoryarray=[layer.name for layer in reversed(est)],
+            categoryarray=[layer.name for layer in reversed(ref)],
         ),
         yaxis2=dict(
             categoryorder="array",
-            categoryarray=[layer.name for layer in reversed(ref)],
+            categoryarray=[layer.name for layer in reversed(est)],
         ),
         legend_visible=False,
         margin=dict(l=20, r=20, t=40, b=20),
+        title=track.info['title']
     )
 
     return fig
 
 
-def create_app_layout(figure):
-    """Create the main app layout with the given figure."""
-    return dbc.Container(
+def create_app_layout(track_ids):
+    """Create the main app layout with the given track IDs for selection."""
+    return dmc.Container(
         [
-            dbc.Row(
-                dbc.Col(
-                    [
-                        html.H1(children='Dash MVP on Hugging Face Spaces! 🚀'),
-                        html.P(children='This is the foundation for the interactive audio widget.'),
-                        dcc.Graph(
-                            figure=figure, 
-                            config={'responsive': True}, 
-                            style={'height': '800px', 'minWidth': '450px'}
-                        ),
-                    ],
-                    width=12,  # Full width on all screen sizes
-                    lg=8,      # 8 columns on large screens and up
-                    md=10,     # 10 columns on medium screens and up
-                    className="text-center"
-                ),
-                justify="center",  # Center the column horizontally
-            )
+            dmc.Title("🎶Music Structure Analysis Dashboard 🎶", order=1, ta="center"),
+            dmc.Text("Interactive audio annotation visualization", ta="center", c="dimmed", mb="lg"),
+            dmc.Select(
+                label="Select Track",
+                placeholder="Select a track",
+                id="track-select-dropdown",
+                value=str(track_ids[8]),  # Set initial value, ensure it's a string
+                data=[{"label": str(tid), "value": str(tid)} for tid in track_ids],
+                searchable=True,
+                clearable=False,
+                style={"width": 200, "marginBottom": 20},
+            ),
+            dcc.Graph(
+                id="annotation-graph",  # Add an ID for callback targeting
+                config={'responsive': True},
+                style={'height': '800px', 'minWidth': '450px'}
+            ),
         ],
-        fluid=True,
-        className="p-3"
+        size="lg",
+        p="md"
     )
 
 
 def create_app():
     """Create and configure the Dash application."""
-    app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-    
-    # Load data and create visualization
-    slm_ds = load_ds()
-    fig = create_annotation_plot(slm_ds[11])
-    
-    # Set up layout
-    app.layout = create_app_layout(fig)
+    app = dash.Dash(__name__)
+    dmc.add_figure_templates(default="mantine_light")
+    # Set up layout with dmc theme
+    app.layout = dmc.MantineProvider(
+        create_app_layout(GLOBAL_SLM_DS.track_ids),
+        theme={"colorScheme": "light"}
+    )
     
     return app
 
 
 # Initialize the app
+
+GLOBAL_SLM_DS = load_ds()
 app = create_app()
 server = app.server  # Expose the server variable for Gunicorn
+
+@app.callback(
+    Output("annotation-graph", "figure"),
+    Input("track-select-dropdown", "value"),
+)
+def update_graph(selected_track_id):
+    """Callback to update the annotation graph based on selected track ID."""
+    if selected_track_id is None:
+        # Return an empty figure or handle the case where no track is selected
+        return {}
+    
+    track = GLOBAL_SLM_DS[selected_track_id]
+    fig = create_annotation_plot(track)
+    return fig
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=7860)
