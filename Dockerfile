@@ -1,6 +1,7 @@
 # Start with a standard Python base image
 FROM python:3.12-slim
 
+ENV NUMBA_CACHE_DIR=/tmp
 # Install git (required for pip install from git repositories)
 # This is needed for both local development and HF Spaces
 RUN apt-get update && \
