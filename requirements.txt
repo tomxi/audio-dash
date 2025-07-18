@@ -2,3 +2,5 @@ dash
 plotly
 gunicorn
 numpy < 2.0.0
+
+git+https://github.com/tomxi/bnl.git@dev/gaussian-smearing
