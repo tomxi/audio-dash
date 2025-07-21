@@ -1,7 +1,6 @@
 dash
 gunicorn
 numpy<2.0.0
-mir_eval
 dash-mantine-components
 
-git+https://github.com/tomxi/bnl.git@main#egg=bnl
+bnl @ git+https://github.com/tomxi/bnl.git@main

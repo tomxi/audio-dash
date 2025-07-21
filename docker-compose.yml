@@ -1,12 +1,15 @@
 services:
   dev:
-    build: .
+    build:
+      context: .
+      args:
+        INSTALL_BNL_FROM_GIT: "false"
     ports:
       - "7860:7860"
     volumes:
       - .:/code
       - ../bnl:/code/bnl
-    command: python app.py
+    command: bash -c "pip install -e ./bnl && python app.py"
 
   prod:
     build: .

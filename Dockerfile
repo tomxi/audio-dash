@@ -13,9 +13,14 @@ RUN apt-get update && \
 WORKDIR /code
 
 # Copy only requirements first to leverage Docker cache
+ARG INSTALL_BNL_FROM_GIT=true
+
 COPY requirements.txt .
 
 # Install Python dependencies
+RUN if [ "$INSTALL_BNL_FROM_GIT" = "false" ]; then \
+    sed -i '/^bnl @/d' requirements.txt; \
+fi
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application

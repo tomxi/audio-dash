@@ -1,17 +1,10 @@
 """Audio Dashboard - A Dash app for visualizing audio annotations."""
 import dash
-from dash import dcc, html, _dash_renderer
-from dash.dependencies import Input, Output
+from dash import dcc, html, Input, Output, State
 import dash_mantine_components as dmc
 from plotly.subplots import make_subplots
 
 import bnl
-_dash_renderer._set_react_version("18.2.0")
-
-def load_ds():
-    """Load sample audio data with annotations."""
-    R2_BUCKET_PUBLIC_URL = "https://pub-05e404c031184ec4bbf69b0c2321b98e.r2.dev"
-    return bnl.data.Dataset(manifest_path=f"{R2_BUCKET_PUBLIC_URL}/manifest_cloud_boolean.csv")
 
 def create_annotation_plot(track):
     """Create a multi-row subplot comparing estimated and reference annotations."""
@@ -26,7 +19,7 @@ def create_annotation_plot(track):
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
-        row_heights=[0.15, 0.4, 0.45],
+        row_heights=[0.1, 0.45, 0.45],
     )
 
     # Add traces to subplots
@@ -39,7 +32,6 @@ def create_annotation_plot(track):
 
     # Configure layout
     fig.update_layout(
-        xaxis3_range=[ref.start.time, ref.end.time],
         barmode="overlay",
         yaxis1=dict(
             categoryorder="array",
@@ -49,38 +41,73 @@ def create_annotation_plot(track):
             categoryorder="array",
             categoryarray=[layer.name for layer in reversed(est)],
         ),
+
         legend_visible=False,
         margin=dict(l=20, r=20, t=40, b=20),
-        title=track.info['title']
+        title=f"{track.jam.file_metadata.title}: {track.jam.file_metadata.artist}",
+    )
+    
+    # Set explicit ranges for all x-axes with autorange constraints
+    fig.update_xaxes(
+        autorangeoptions=dict(
+            minallowed=ref.start.time,
+            maxallowed=ref.end.time
+        )
     )
 
     return fig
 
-
-def create_app_layout(track_ids):
-    """Create the main app layout with the given track IDs for selection."""
-    return dmc.Container(
-        [
-            dmc.Title("🎶Music Structure Analysis Dashboard 🎶", order=1, ta="center"),
-            dmc.Text("Interactive audio annotation visualization", ta="center", c="dimmed", mb="lg"),
-            dmc.Select(
-                label="Select Track",
+def create_track_selector(track_ids):
+    """Create a track selector dropdown."""
+    return dmc.Select(
+                id="track-selector",
+                label="Select Salami Track",
                 placeholder="Select a track",
-                id="track-select-dropdown",
-                value=str(track_ids[8]),  # Set initial value, ensure it's a string
+                value=str(track_ids[0]) if track_ids else None,
                 data=[{"label": str(tid), "value": str(tid)} for tid in track_ids],
                 searchable=True,
                 clearable=False,
-                style={"width": 200, "marginBottom": 20},
+            )
+
+def create_app_layout(track_ids):
+    """Create the main app layout with the given track IDs for selection."""
+    return dmc.AppShell(
+        [
+            dmc.AppShellHeader(
+                dmc.Group(
+                    [
+                        dmc.Burger(id="navbar-burger", size="sm", hiddenFrom="sm", opened=False),
+                        dmc.Title("𝄆🎶𝄇", order=2),
+                    ],
+                    h="100%",
+                    px="md",
+                )
             ),
-            dcc.Graph(
-                id="annotation-graph",  # Add an ID for callback targeting
-                config={'responsive': True},
-                style={'height': '800px', 'minWidth': '450px'}
+            dmc.AppShellNavbar(
+                p="md",
+                children=create_track_selector(track_ids),
+            ),
+            dmc.AppShellMain(
+                dmc.Container(
+                    dcc.Graph(
+                    id="annotation-graph",
+                    config={
+                        'responsive': True,
+                        'displayModeBar': True,
+                        'displaylogo': False,
+                        'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+                    },
+                    style={'height': '80vh', 'min-height': '450px', 'width': '100%'},
+                    ),
+                    size="md",
+                    p="sm",
+                )
             ),
         ],
-        size="lg",
-        p="md"
+        id="app-shell",
+        padding="md",
+        header={"height": 50},
+        navbar={"width": 300, "breakpoint": "sm", "collapsed": {"mobile": True}},
     )
 
 
@@ -96,26 +123,37 @@ def create_app():
     
     return app
 
-
-# Initialize the app
-
-GLOBAL_SLM_DS = load_ds()
+### Initialize the app
+GLOBAL_SLM_DS =  bnl.data.Dataset()
 app = create_app()
 server = app.server  # Expose the server variable for Gunicorn
 
+### Interactivity
+@app.callback(
+    Output("app-shell", "navbar"),
+    Input("navbar-burger", "opened"),
+    State("app-shell", "navbar"),
+)
+def toggle_navbar(burger_is_open, current_navbar_config):
+    """Callback to control the navbar's collapsed state on mobile."""
+    current_navbar_config["collapsed"] = {"mobile": not burger_is_open}
+    return current_navbar_config
+
 @app.callback(
     Output("annotation-graph", "figure"),
-    Input("track-select-dropdown", "value"),
+    Input("track-selector", "value"),
 )
 def update_graph(selected_track_id):
     """Callback to update the annotation graph based on selected track ID."""
     if selected_track_id is None:
-        # Return an empty figure or handle the case where no track is selected
-        return {}
-    
-    track = GLOBAL_SLM_DS[selected_track_id]
-    fig = create_annotation_plot(track)
-    return fig
+        # On initial load, use the first available track ID
+        if not GLOBAL_SLM_DS.track_ids:
+            return {}
+        selected_track_id = GLOBAL_SLM_DS.track_ids[0]
 
+    track = GLOBAL_SLM_DS[str(selected_track_id)]
+    return create_annotation_plot(track)
+
+### For local development
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=7860)
