@@ -1,6 +1,12 @@
 dash
-gunicorn
-numpy<2.0.0
 dash-mantine-components
+dash-player
+gunicorn
+numpy
+pandas
+scipy
+scikit-learn
+jams
+mir_eval
 
 bnl @ git+https://github.com/tomxi/bnl.git@main

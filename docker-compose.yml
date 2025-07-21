@@ -8,8 +8,8 @@ services:
       - "7860:7860"
     volumes:
       - .:/code
-      - ../bnl:/code/bnl
-    command: bash -c "pip install -e ./bnl && python app.py"
+      - ../bnl:/bnl
+    command: bash -c "pip install -e /bnl && python app.py"
 
   prod:
     build: .
