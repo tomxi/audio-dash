@@ -5,6 +5,7 @@ services:
       - "7860:7860"
     volumes:
       - .:/code
+      - ../bnl:/code/bnl
     command: python app.py
 
   prod:

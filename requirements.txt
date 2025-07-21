@@ -1,13 +1,7 @@
 dash
-plotly
 gunicorn
-numpy < 2.0.0
+numpy<2.0.0
 mir_eval
-jams
-librosa
-scipy
-scikit-learn
-dash-bootstrap-components
 dash-mantine-components
 
-git+https://github.com/tomxi/bnl.git@dev/gaussian-smearing
+git+https://github.com/tomxi/bnl.git@main#egg=bnl
