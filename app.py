@@ -153,12 +153,8 @@ def register_callbacks(app, dataset):
     )
     def set_playhead(clickData):
         """Update playhead based on click data."""
-        if not clickData:
-            return dash.no_update
         try:
-            customdata = clickData['points'][0]['customdata'].split('<br>')
-            start_time = customdata[2].split(' ')[1].replace('s', '')
-            return float(start_time)
+            return float(json.dumps(clickData['points'][0]['base']))
         except KeyError:
             return float(json.dumps(clickData['points'][0]['x']))
         except Exception:
