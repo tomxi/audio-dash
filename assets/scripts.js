@@ -18,16 +18,44 @@ window.dash_clientside.audioPlayback = {
         console.log("Audio Controller Initialized", trigger_time);
     },
     setupTimeUpdateListener: function(audioEl, graphEl) {
-        audioEl.addEventListener('timeupdate', () => {
-            // Schedule the Plotly update to run just before the next repaint.
-            window.requestAnimationFrame(() => {
+        // Use a custom 100ms timer for smoother playhead updates
+        let updateInterval;
+        
+        const updatePlayhead = () => {
+            if (!audioEl.paused && !audioEl.ended) {
                 const currentTime = audioEl.currentTime;
-                Plotly.relayout(graphEl, {
-                    'shapes[0].x0': currentTime,
-                    'shapes[0].x1': currentTime,
+                // Use requestAnimationFrame for smooth rendering sync
+                window.requestAnimationFrame(() => {
+                    Plotly.relayout(graphEl, {
+                        'shapes[0].x0': currentTime,
+                        'shapes[0].x1': currentTime,
+                    });
                 });
-            });
+            }
+        };
+        
+        // Start/stop timer based on audio play/pause events
+        audioEl.addEventListener('play', () => {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(updatePlayhead, 100); // 100ms updates
         });
+        
+        audioEl.addEventListener('pause', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        });
+        
+        audioEl.addEventListener('ended', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        });
+        
+        // Also update on seek
+        audioEl.addEventListener('seeked', updatePlayhead);
     },
     setupSeekListener: function(audioEl, graphEl) {
         graphEl.on('plotly_click', (clickData) => {
