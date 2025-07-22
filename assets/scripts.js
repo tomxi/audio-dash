@@ -2,32 +2,40 @@
 window.dash_clientside = window.dash_clientside || {};
 
 window.dash_clientside.audioPlayback = {
-    drawPlayhead: function(currentTime, graphId) {
-        if (currentTime > 0 && graphId) {
-            const graphDiv = document.getElementById(graphId).querySelector('.js-plotly-plot');
-            if (!graphDiv || !graphDiv.layout || !graphDiv.layout.shapes) {
-            }
+    init: function(trigger_time) {
+        const audioEl = document.getElementById('audio-player');
+        const graphEl = document.getElementById('annotation-graph').querySelector('.js-plotly-plot');
+        // Exit if our elements don't exist yet
+        if (!audioEl || !graphEl) {
+            console.error("Audio Controller: Audio or Graph element not found.");
+            return;
+        }
 
-            const layout = graphDiv.layout;
-            const playheadIndex = layout.shapes.findIndex(shape => shape.name === 'playhead');
-            if (playheadIndex !== -1) {
-                const update = {
-                    [`shapes[${playheadIndex}].x0`]: currentTime,
-                    [`shapes[${playheadIndex}].x1`]: currentTime
-                };
-                
-                Plotly.relayout(graphDiv, update);
-            }
-        }
+        // Set up the two-way interactivity
+        this.setupTimeUpdateListener(audioEl, graphEl);
+        this.setupSeekListener(audioEl, graphEl);
+
+        console.log("Audio Controller Initialized", trigger_time);
     },
-    seekPlayhead: function(targetTime, audioPlayerId) {
-        if (targetTime > 0 && audioPlayerId) {
-            const audioPlayer = document.getElementById(audioPlayerId).querySelector('audio');
-            if (audioPlayer) {
-                audioPlayer.pause()
-                audioPlayer.currentTime = targetTime;
-                audioPlayer.play()
+    setupTimeUpdateListener: function(audioEl, graphEl) {
+        audioEl.addEventListener('timeupdate', () => {
+            // Schedule the Plotly update to run just before the next repaint.
+            window.requestAnimationFrame(() => {
+                const currentTime = audioEl.currentTime;
+                Plotly.relayout(graphEl, {
+                    'shapes[0].x0': currentTime,
+                    'shapes[0].x1': currentTime,
+                });
+            });
+        });
+    },
+    setupSeekListener: function(audioEl, graphEl) {
+        graphEl.on('plotly_click', (clickData) => {
+            if (clickData && clickData.points) {
+                // The 'x' coordinate of the click gives us the target time
+                const point = clickData.points[0]
+                audioEl.currentTime = point.hasOwnProperty('base') ? point.base : point.x;
             }
-        }
-    }
+        });
+    },
 };

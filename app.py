@@ -2,9 +2,8 @@
 import dash
 from dash import dcc, html, Input, Output, State, clientside_callback, ClientsideFunction
 import dash_mantine_components as dmc
-from dash_player import DashPlayer
 from plotly.subplots import make_subplots
-import json
+import time
 import random
 
 import bnl
@@ -51,7 +50,7 @@ def create_annotation_plot(track):
         shapes=[playhead_shape],
         legend_visible=False,
         margin=dict(l=20, r=20, t=40, b=20),
-        title=f"{track.jam.file_metadata.title}: {track.jam.file_metadata.artist}"
+        title=f"{track.jam.file_metadata.title}: {track.jam.file_metadata.artist}",
     )
     
     # Set explicit ranges for all x-axes with autorange constraints
@@ -90,24 +89,15 @@ def create_app_layout(dataset):
         searchable=True,
         clearable=False,
     )
-    audio_player = DashPlayer(
-        id='audio-player',
-        controls=True,
-        width='100%',
-        height='50px',
-        intervalCurrentTime=100,
-        style={'marginBottom': '20px'}
-    )
+    audio_player = html.Audio(id='audio-player', controls=True, autoPlay=True, loop=True, style={'width': '100%'})
 
     return dmc.AppShell(
         [
             dmc.AppShellHeader(header_row, p="xs"),
             dmc.AppShellNavbar(p="md", children=[track_selector, audio_player]),
             dmc.AppShellMain(dmc.Container(graph_element, size="md", p="xs")),
-            dcc.Store(id="init-bang"),
-            dcc.Store(id="playhead-store"),
-            html.Div(id='clientside-dummy-output'),
-            html.Div(id='clientside-dummy-output-2'),
+            dcc.Store(id="init-store"),
+            dcc.Store(id='audio-controller-trigger'),
         ],
         id="app-shell",
         padding="md",
@@ -130,59 +120,31 @@ def register_callbacks(app, dataset):
 
     @app.callback(
         Output("annotation-graph", "figure"),
-        Output("audio-player", "url"),
-        Output("audio-player", "playing"),
+        Output("audio-player", "src"),
+        Output("audio-controller-trigger", "data"),
         Input("track-selector", "value"),
     )
     def update_graph_and_audio(selected_track_id):
         """Update graph and audio based on selected track."""
         if not selected_track_id or not dataset.track_ids:
-            return dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update
         track = dataset[selected_track_id]
         fig = create_annotation_plot(track)
-        return fig, track.info['audio_mp3_path'], True
+        # Send current time as a trigger signal
+        trigger_data = str(time.time()) 
+        return fig, track.info['audio_mp3_path'], trigger_data
 
     @app.callback(
         Output("track-selector", "value"),
-        Input("init-bang", "data"),
+        Input("init-store", "data"),
     )
     def load_init_track(_):
         """Load initial track on app startup."""
         return random.choice(dataset.track_ids) if dataset.track_ids else dash.no_update
 
-    @app.callback(
-        Output("playhead-store", "data"),
-        Input("annotation-graph", "clickData"),
-    )
-    def set_playhead(clickData):
-        """Update playhead based on click data."""
-        try:
-            trace = clickData['points'][0]
-            target_time = trace.get('base', trace.get('x', None))
-            return float(target_time)
-        except Exception:
-            return dash.no_update
-    
-    # Clientside callback for playhead updates
     clientside_callback(
-        ClientsideFunction(
-            namespace='audioPlayback',
-            function_name='drawPlayhead'
-        ),
-        # Output('clientside-dummy-output', 'children'),
-        Input('audio-player', 'currentTime'),
-        State('annotation-graph', 'id'),
-    )
-
-    # Callback to update playhead position
-    clientside_callback(
-        ClientsideFunction(
-            namespace='audioPlayback',
-            function_name='seekPlayhead'
-        ),
-        # Output('clientside-dummy-output-2', 'children'),
-        Input('playhead-store', 'data'),
-        State('audio-player', 'id'),
+        ClientsideFunction(namespace="audioPlayback", function_name="init"),
+        Input("audio-controller-trigger", "data"),
     )
 
 def create_app():
