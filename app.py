@@ -4,6 +4,7 @@ from dash import dcc, html, Input, Output, State, clientside_callback, Clientsid
 import dash_mantine_components as dmc
 from dash_player import DashPlayer
 from plotly.subplots import make_subplots
+import json
 
 import bnl
 
@@ -102,7 +103,7 @@ def create_app_layout(dataset):
             dmc.AppShellHeader(header_row),
             dmc.AppShellNavbar(p="md", children=[track_selector, audio_player]),
             dmc.AppShellMain(dmc.Container(graph_element, size="md", p="xs")),
-            dcc.Store(id="init-complete"),
+            dcc.Store(id="init-bang"),
             html.Div(id='clientside-dummy-output'),
         ],
         id="app-shell",
@@ -140,11 +141,28 @@ def register_callbacks(app, dataset):
 
     @app.callback(
         Output("track-selector", "value"),
-        Input("init-complete", "data"),
+        Input("init-bang", "data"),
     )
     def load_init_track(_):
         """Load initial track on app startup."""
         return dataset.track_ids[8] if dataset.track_ids else dash.no_update
+
+    @app.callback(
+        Output("audio-player", "seekTo"),
+        Input("annotation-graph", "clickData"),
+    )
+    def set_playhead(clickData):
+        """Update playhead based on click data."""
+        if not clickData:
+            return dash.no_update
+        try:
+            customdata = clickData['points'][0]['customdata'].split('<br>')
+            start_time = customdata[2].split(' ')[1].replace('s', '')
+            return float(start_time)
+        except KeyError:
+            return float(json.dumps(clickData['points'][0]['x']))
+        except Exception:
+            return dash.no_update
 
     # Clientside callback for playhead updates
     clientside_callback(
