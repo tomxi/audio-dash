@@ -2,11 +2,10 @@
 window.dash_clientside = window.dash_clientside || {};
 
 window.dash_clientside.audioPlayback = {
-    updatePlayhead: function(currentTime, graphId) {
+    drawPlayhead: function(currentTime, graphId) {
         if (currentTime > 0 && graphId) {
             const graphDiv = document.getElementById(graphId).querySelector('.js-plotly-plot');
             if (!graphDiv || !graphDiv.layout || !graphDiv.layout.shapes) {
-                return 'no_shapes';
             }
 
             const layout = graphDiv.layout;
@@ -18,9 +17,17 @@ window.dash_clientside.audioPlayback = {
                 };
                 
                 Plotly.relayout(graphDiv, update);
-                return 'playhead_updated';
             }
         }
-        return 'no_playhead';
+    },
+    seekPlayhead: function(targetTime, audioPlayerId) {
+        if (targetTime > 0 && audioPlayerId) {
+            const audioPlayer = document.getElementById(audioPlayerId).querySelector('audio');
+            if (audioPlayer) {
+                audioPlayer.pause()
+                audioPlayer.currentTime = targetTime;
+                audioPlayer.play()
+            }
+        }
     }
 };

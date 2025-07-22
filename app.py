@@ -5,6 +5,7 @@ import dash_mantine_components as dmc
 from dash_player import DashPlayer
 from plotly.subplots import make_subplots
 import json
+import random
 
 import bnl
 
@@ -74,11 +75,11 @@ def create_app_layout(dataset):
     )
     header_row = dmc.Group(
         [
-            dmc.Burger(id="navbar-burger", size="sm", hiddenFrom="sm", opened=False),
+            dmc.Burger(id="navbar-burger", size="md", hiddenFrom="sm", opened=False),
             dmc.Title("𝄆🎶𝄇", order=2),
         ],
         h="100%",
-        px="md",
+        px="sm",
     )
     track_selector = dmc.Select(
         id="track-selector",
@@ -100,11 +101,13 @@ def create_app_layout(dataset):
 
     return dmc.AppShell(
         [
-            dmc.AppShellHeader(header_row),
+            dmc.AppShellHeader(header_row, p="xs"),
             dmc.AppShellNavbar(p="md", children=[track_selector, audio_player]),
             dmc.AppShellMain(dmc.Container(graph_element, size="md", p="xs")),
             dcc.Store(id="init-bang"),
+            dcc.Store(id="playhead-store"),
             html.Div(id='clientside-dummy-output'),
+            html.Div(id='clientside-dummy-output-2'),
         ],
         id="app-shell",
         padding="md",
@@ -145,30 +148,41 @@ def register_callbacks(app, dataset):
     )
     def load_init_track(_):
         """Load initial track on app startup."""
-        return dataset.track_ids[8] if dataset.track_ids else dash.no_update
+        return random.choice(dataset.track_ids) if dataset.track_ids else dash.no_update
 
     @app.callback(
-        Output("audio-player", "seekTo"),
+        Output("playhead-store", "data"),
         Input("annotation-graph", "clickData"),
     )
     def set_playhead(clickData):
         """Update playhead based on click data."""
         try:
-            return float(json.dumps(clickData['points'][0]['base']))
-        except KeyError:
-            return float(json.dumps(clickData['points'][0]['x']))
+            trace = clickData['points'][0]
+            target_time = trace.get('base', trace.get('x', None))
+            return float(target_time)
         except Exception:
             return dash.no_update
-
+    
     # Clientside callback for playhead updates
     clientside_callback(
         ClientsideFunction(
             namespace='audioPlayback',
-            function_name='updatePlayhead'
+            function_name='drawPlayhead'
         ),
-        Output('clientside-dummy-output', 'children'),
+        # Output('clientside-dummy-output', 'children'),
         Input('audio-player', 'currentTime'),
         State('annotation-graph', 'id'),
+    )
+
+    # Callback to update playhead position
+    clientside_callback(
+        ClientsideFunction(
+            namespace='audioPlayback',
+            function_name='seekPlayhead'
+        ),
+        # Output('clientside-dummy-output-2', 'children'),
+        Input('playhead-store', 'data'),
+        State('audio-player', 'id'),
     )
 
 def create_app():
