@@ -20,7 +20,7 @@ def create_annotation_plot(track):
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
-        row_heights=[0.1, 0.45, 0.45],
+        row_heights=[0.12, 0.55, 0.33],
     )
 
     # Add traces to subplots
@@ -31,7 +31,11 @@ def create_annotation_plot(track):
     for trace in est.to_contour('prob').plot().data:
         fig.add_trace(trace, row=3, col=1)
 
-    # Configure layout
+    # build playhead as a shape
+    playhead_shape = dict(type='line', name='playhead', xref='x', yref='paper', x0=0, x1=0, y0=0, y1=1)
+    playhead_shape.update(line=dict(color='rgba(255, 0, 0, 0.8)', width=1, dash='solid'))
+    
+    # update layout
     fig.update_layout(
         barmode="overlay",
         yaxis1=dict(
@@ -42,79 +46,62 @@ def create_annotation_plot(track):
             categoryorder="array",
             categoryarray=[layer.name for layer in reversed(est)],
         ),
-
+        shapes=[playhead_shape],
         legend_visible=False,
         margin=dict(l=20, r=20, t=40, b=20),
-        title=f"{track.jam.file_metadata.title}: {track.jam.file_metadata.artist}",
+        title=f"{track.jam.file_metadata.title}: {track.jam.file_metadata.artist}"
     )
     
     # Set explicit ranges for all x-axes with autorange constraints
     fig.update_xaxes(
-        autorangeoptions=dict(
-            minallowed=ref.start.time,
-            maxallowed=ref.end.time
-        )
+        autorangeoptions=dict(minallowed=ref.start.time, maxallowed=ref.end.time)
     )
 
     return fig
 
-def create_track_selector(slm_ds):
-    """Create a track selector dropdown."""
-    track_ids = getattr(slm_ds, "track_ids", [])
-    return dmc.Select(
-                id="track-selector",
-                label="Select Salami Track",
-                placeholder="Select a track",
-                value=None,
-                data=[{"label": str(tid), "value": str(tid)} for tid in track_ids],
-                searchable=True,
-                clearable=False,
-            )
-
 def create_app_layout(dataset):
     """Create the main app layout with the given dataset."""
+    graph_element = dcc.Graph(
+        id="annotation-graph",
+        config={
+            'responsive': True,
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+        },
+        style={'height': '80vh', 'minHeight': '450px', 'maxHeight': '950px', 'width': '100%'},
+    )
+    header_row = dmc.Group(
+        [
+            dmc.Burger(id="navbar-burger", size="sm", hiddenFrom="sm", opened=False),
+            dmc.Title("𝄆🎶𝄇", order=2),
+        ],
+        h="100%",
+        px="md",
+    )
+    track_selector = dmc.Select(
+        id="track-selector",
+        label="Select Salami Track",
+        placeholder="Select a track",
+        value=None,
+        data=[{"label": str(tid), "value": str(tid)} for tid in dataset.track_ids],
+        searchable=True,
+        clearable=False,
+    )
+    audio_player = DashPlayer(
+        id='audio-player',
+        controls=True,
+        width='100%',
+        height='50px',
+        intervalCurrentTime=100,
+        style={'marginBottom': '20px'}
+    )
+
     return dmc.AppShell(
         [
-            dmc.AppShellHeader(
-                dmc.Group(
-                    [
-                        dmc.Burger(id="navbar-burger", size="sm", hiddenFrom="sm", opened=False),
-                        dmc.Title("𝄆🎶𝄇", order=2),
-                    ],
-                    h="100%",
-                    px="md",
-                )
-            ),
-            dmc.AppShellNavbar(
-                p="md",
-                children=[
-                    create_track_selector(dataset),
-                    DashPlayer(
-                        id='audio-player',
-                        controls=True,
-                        width='100%',
-                        height='50px',
-                        intervalCurrentTime=100,
-                        style={'marginBottom': '20px'}
-                    ),
-                ],
-            ),
-            dmc.AppShellMain(
-                dmc.Container(
-                    dcc.Graph(
-                    id="annotation-graph",
-                    config={
-                        'responsive': True,
-                        'displayModeBar': True,
-                        'displaylogo': False,
-                        'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
-                    },
-                    style={'height': '80vh', 'min-height': '450px', 'max-height': '950px', 'width': '100%'},
-                    ),
-                    size="md",
-                    p="xs",
-                )
-            ),
+            dmc.AppShellHeader(header_row),
+            dmc.AppShellNavbar(p="md", children=[track_selector, audio_player]),
+            dmc.AppShellMain(dmc.Container(graph_element, size="md", p="xs")),
             dcc.Store(id="init-complete"),
             html.Div(id='clientside-dummy-output'),
         ],
@@ -148,7 +135,8 @@ def register_callbacks(app, dataset):
         if not selected_track_id or not dataset.track_ids:
             return dash.no_update, dash.no_update, dash.no_update
         track = dataset[selected_track_id]
-        return create_annotation_plot(track), track.info['audio_mp3_path'], True
+        fig = create_annotation_plot(track)
+        return fig, track.info['audio_mp3_path'], True
 
     @app.callback(
         Output("track-selector", "value"),
@@ -167,7 +155,6 @@ def register_callbacks(app, dataset):
         Output('clientside-dummy-output', 'children'),
         Input('audio-player', 'currentTime'),
         State('annotation-graph', 'id'),
-        State('annotation-graph', 'figure'),
     )
 
 def create_app():

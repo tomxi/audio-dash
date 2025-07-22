@@ -2,51 +2,25 @@
 window.dash_clientside = window.dash_clientside || {};
 
 window.dash_clientside.audioPlayback = {
-    updatePlayhead: function(currentTime, graphId, figure) {
-        if (currentTime > 0 && graphId && figure && figure.layout) {
-            const graphDiv = document.getElementById(graphId);
-            // console.log('graphDiv:', graphDiv);
-            // console.log('figure.layout:', figure.layout);
-
-            // Find the playhead shape by name, or create a new one if it doesn't exist
-            let playheadIndex = -1;
-            const shapes = (figure.layout.shapes || []).map((s, idx) => {
-                if (s.name === 'playhead') {
-                    playheadIndex = idx;
-                    return {
-                        ...s,
-                        x0: currentTime,
-                        x1: currentTime,
-                        y0: figure.layout.yaxis3.range[0],
-                        y1: figure.layout.yaxis3.range[1],
-                    };
-                }
-                return s;
-            });
-
-            if (playheadIndex === -1) {
-                // Playhead doesn't exist, create it
-                const newPlayhead = {
-                    type: 'line',
-                    name: 'playhead',
-                    xref: 'x',
-                    yref: 'y3',
-                    x0: currentTime,
-                    x1: currentTime,
-                    y0: figure.layout.yaxis3.range[0],
-                    y1: figure.layout.yaxis3.range[1],
-                    line: {
-                        color: 'rgba(255, 0, 0, 0.8)',
-                        width: 2,
-                        dash: 'solid',
-                    }
-                };
-                shapes.push(newPlayhead);
+    updatePlayhead: function(currentTime, graphId) {
+        if (currentTime > 0 && graphId) {
+            const graphDiv = document.getElementById(graphId).querySelector('.js-plotly-plot');
+            if (!graphDiv || !graphDiv.layout || !graphDiv.layout.shapes) {
+                return 'no_shapes';
             }
-            
-            // Use Plotly.relayout to update only the shapes
-            Plotly.relayout(graphId, { shapes: shapes });
+
+            const layout = graphDiv.layout;
+            const playheadIndex = layout.shapes.findIndex(shape => shape.name === 'playhead');
+            if (playheadIndex !== -1) {
+                const update = {
+                    [`shapes[${playheadIndex}].x0`]: currentTime,
+                    [`shapes[${playheadIndex}].x1`]: currentTime
+                };
+                
+                Plotly.relayout(graphDiv, update);
+                return 'playhead_updated';
+            }
         }
-        return null;
+        return 'no_playhead';
     }
 };
