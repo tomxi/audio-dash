@@ -29,7 +29,7 @@ def create_annotation_plot(track):
         fig.add_trace(trace, row=1, col=1)
     for trace in fig_est.data:
         fig.add_trace(trace, row=2, col=1)
-    for trace in est.to_contour('prob').plot().data:
+    for trace in est.contour('prob').plot().data:
         fig.add_trace(trace, row=3, col=1)
 
     # build playhead as a shape
