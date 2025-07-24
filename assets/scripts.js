@@ -7,6 +7,7 @@ class AudioController {
         this.graph = null;
         this.frame = null;
         this.userActive = false;
+        this.lastUpdate = Date.now();
     }
 
     init(audioSelector = '#audio-player', graphSelector = '#annotation-graph') {
@@ -24,11 +25,15 @@ class AudioController {
     setupEvents() {
         const startPlayhead = () => {
             if (!this.audio.paused && !this.userActive) {
-                const time = this.getTime();
-                Plotly.relayout(this.graph, {
-                    'shapes[0].x0': time,
-                    'shapes[0].x1': time
-                }).catch(() => {});
+                let now = Date.now();
+                if (now - this.lastUpdate >= 250) { // 4Hz = 250ms
+                    const time = this.getTime();
+                    Plotly.relayout(this.graph, {
+                        'shapes[0].x0': time,
+                        'shapes[0].x1': time
+                    }).catch(() => {});
+                    this.lastUpdate = now;
+                }
             }
             this.frame = this.audio.paused ? null : requestAnimationFrame(startPlayhead);
         };
