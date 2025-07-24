@@ -7,7 +7,6 @@ class AudioController {
         this.graph = null;
         this.frame = null;
         this.userActive = false;
-        this.timer = null;
     }
 
     init(audioSelector = '#audio-player', graphSelector = '#annotation-graph') {
@@ -51,22 +50,25 @@ class AudioController {
         this.graph.addEventListener('mousedown', () => handleInteraction(true));
         this.graph.addEventListener('mouseup', () => handleInteraction(false));
         this.graph.addEventListener('mouseleave', () => handleInteraction(false));
+        
+        // Plotly double-click recovery
+        this.graph.on('plotly_doubleclick', () => {
+            handleInteraction(false); // Reset interaction state
+            if (!this.audio.paused) {
+                setTimeout(() => startPlayhead(), 100); // Delay to allow Plotly to finish
+            }
+        });
 
         // Click-to-seek and auto-play
         this.graph.on('plotly_click', (data) => {
             if (!data?.points?.[0]) return;
             
-            clearTimeout(this.timer);
             handleInteraction(false); // Reset interaction state
             this.seekTo(data.points[0].base ?? data.points[0].x);
             
-            // Auto-play after seek
+            // Auto-play after seek and start playhead
             if (this.audio.paused) this.audio.play();
-            
-            // Resume sync after seek
-            this.timer = setTimeout(() => {
-                if (!this.audio.paused) startPlayhead();
-            }, 50);
+            startPlayhead();
         });
 
         // startPlayhead if already playing
