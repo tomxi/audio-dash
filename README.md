@@ -9,7 +9,7 @@ pinned: false
 ---
 
 # audio-dash
-Learning about audio dash app setups
+Audio dashborad hosted on huggingface spaces using dash and plotly
 
 run locally with:
 ```bash
