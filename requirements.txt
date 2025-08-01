@@ -1,6 +1,5 @@
 dash
 dash-mantine-components
-dash-player
 gunicorn
 numpy
 pandas
