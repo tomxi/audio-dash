@@ -1,0 +1,14 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    },
+    // Testing configuration
+    "python.testing.cwd": "${workspaceFolder}", 
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.autoTestDiscoverOnSaveEnabled": true,
+    
+    // REPL behavior - disabled smart send for cleaner execution
+    "python.REPL.enableREPLSmartSend": false,
+}
